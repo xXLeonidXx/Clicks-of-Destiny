@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Змейка с плавным движением и мгновенным поворотом</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #game, #gameOverMessage {
+      margin: 20px auto;
+      display: none;
+      background: #eee;
+      border: 1px solid #000;
+      touch-action: none;
+      max-width: 100vw;
+      max-height: 100vh;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #eee;
+    }
+    .menu, .speed-menu, .controls {
+      margin-top: 20px;
+    }
+    button, select {
+      font-size: 20px;
+      padding: 14px 28px;
+      margin: 12px;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 8px;
+      border: 2px solid #333;
+      background-color: #fff;
+      box-shadow: 1px 1px 6px rgba(0,0,0,0.3);
+      transition: background-color 0.2s;
+    }
+    button:active {
+      background-color: #ddd;
+    }
+    #gameOverMessage {
+      font-size: 26px;
+      color: red;
+    }
+    .controls {
+      display: inline-block;
+      margin-top: 15px;
+      user-select: none;
+    }
+    .control-row {
+      display: flex;
+      justify-content: center;
+      margin: 8px 0;
+    }
+    .arrow-btn {
+      font-size: 36px;
+      width: 80px;
+      height: 80px;
+      margin: 0 14px;
+      border-radius: 14px;
+      border: 2px solid #333;
+      background-color: #fff;
+      cursor: pointer;
+      box-shadow: 1px 1px 6px rgba(0,0,0,0.3);
+      transition: background-color 0.2s;
+      user-select: none;
+      line-height: 80px;
+      text-align: center;
+      padding: 0;
+    }
+    .arrow-btn:active {
+      background-color: #ddd;
+    }
+    @media (max-width: 480px) {
+      .arrow-btn {
+        width: 65px;
+        height: 65px;
+        font-size: 28px;
+        margin: 0 10px;
+        line-height: 65px;
+      }
+      button, select {
+        font-size: 18px;
+        padding: 12px 24px;
+        margin: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="mainMenu" class="menu">
+  <h1>Змейка</h1>
+  <button id="startGameBtn">Старт игры</button>
+  <button id="chooseSpeedBtn">Выбор скорости</button>
+</div>
+
+<div id="speedMenu" class="speed-menu" style="display:none;">
+  <h2>Выберите скорость змейки</h2>
+  <select id="speedSelect" aria-label="Выбор скорости змейки">
+    <option value="300">1 (медленно)</option>
+    <option value="270">2</option>
+    <option value="240" selected>3</option>
+    <option value="210">4</option>
+    <option value="180">5</option>
+    <option value="150">6</option>
+    <option value="120">7</option>
+    <option value="90">8</option>
+    <option value="60">9</option>
+    <option value="30">10 (быстро)</option>
+  </select>
+  <br/>
+  <button id="backToMenuBtn">Назад в меню</button>
+</div>
+
+<canvas id="game" aria-label="Игровое поле змейки" role="img"></canvas>
+
+<div id="gameOverMessage" role="alert" aria-live="assertive">
+  Игра окончена!<br/>
+  <button id="restartBtn">Начать заново</button>
+  <button id="exitToMenuBtn">Выйти в меню</button>
+</div>
+
+<div id="controls" class="controls" style="display:none;" aria-label="Управление змейкой">
+  <div class="control-row">
+    <button id="upBtn" class="arrow-btn" aria-label="Вверх">↑</button>
+  </div>
+  <div class="control-row">
+    <button id="leftBtn" class="arrow-btn" aria-label="Влево">←</button>
+    <div style="width: 80px; display: inline-block;"></div>
+    <button id="rightBtn" class="arrow-btn" aria-label="Вправо">→</button>
+  </div>
+  <div class="control-row">
+    <button id="downBtn" class="arrow-btn" aria-label="Вниз">↓</button>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  const cols = 20;
+  const rows = 20;
+
+  let box;
+
+  let snake;
+  let direction = 'RIGHT';
+  let nextDirection = 'RIGHT';
+  let food;
+  let gameInterval;
+  let speed = 240; // скорость по умолчанию — 3-я
+
+  let edgeDelayTimer = null;
+  const edgeDelayMs = 300;
+
+  const mainMenu = document.getElementById('mainMenu');
+  const speedMenu = document.getElementById('speedMenu');
+  const gameOverMessage = document.getElementById('gameOverMessage');
+  const controls = document.getElementById('controls');
+
+  const startGameBtn = document.getElementById('startGameBtn');
+  const chooseSpeedBtn = document.getElementById('chooseSpeedBtn');
+  const backToMenuBtn = document.getElementById('backToMenuBtn');
+  const restartBtn = document.getElementById('restartBtn');
+  const exitToMenuBtn = document.getElementById('exitToMenuBtn');
+
+  const speedSelect = document.getElementById('speedSelect');
+
+  const upBtn = document.getElementById('upBtn');
+  const downBtn = document.getElementById('downBtn');
+  const leftBtn = document.getElementById('leftBtn');
+  const rightBtn = document.getElementById('rightBtn');
+
+  function resizeCanvas() {
+    const maxWidth = window.innerWidth * 0.9;
+    const maxHeight = (window.innerHeight - 200) * 0.9;
+
+    box = Math.floor(Math.min(maxWidth / cols, maxHeight / rows));
+
+    canvas.width = box * cols;
+    canvas.height = box * rows;
+  }
+
+  function init() {
+    resizeCanvas();
+
+    snake = [
+      { x: 9 * box, y: 10 * box },
+      { x: 8 * box, y: 10 * box },
+      { x: 7 * box, y: 10 * box },
+    ];
+    direction = 'RIGHT';
+    nextDirection = 'RIGHT';
+    placeFood();
+    gameOverMessage.style.display = 'none';
+    edgeDelayTimer = null;
+
+    if (gameInterval) clearInterval(gameInterval);
+    gameInterval = setInterval(moveSnake, speed);
+
+    draw();
+  }
+
+  function placeFood() {
+    do {
+      food = {
+        x: Math.floor(Math.random() * cols) * box,
+        y: Math.floor(Math.random() * rows) * box,
+      };
+    } while (collision(food.x, food.y, snake));
+  }
+
+  function moveSnake() {
+    direction = nextDirection;
+
+    let headX = snake[0].x;
+    let headY = snake[0].y;
+
+    if (direction === 'LEFT') headX -= box;
+    else if (direction === 'RIGHT') headX += box;
+    else if (direction === 'UP') headY -= box;
+    else if (direction === 'DOWN') headY += box;
+
+    const outOfBounds = headX < 0 || headX >= canvas.width || headY < 0 || headY >= canvas.height;
+    const hitsSelf = collision(headX, headY, snake);
+
+    if (outOfBounds) {
+      if (!edgeDelayTimer) {
+        edgeDelayTimer = setTimeout(() => {
+          gameOver();
+        }, edgeDelayMs);
+      }
+      if (canTurnAwayFromEdge()) {
+        clearTimeout(edgeDelayTimer);
+        edgeDelayTimer = null;
+      }
+      draw();
+      return;
+    } else {
+      if (edgeDelayTimer) {
+        clearTimeout(edgeDelayTimer);
+        edgeDelayTimer = null;
+      }
+    }
+
+    if (hitsSelf) {
+      gameOver();
+      return;
+    }
+
+    if (headX === food.x && headY === food.y) {
+      placeFood();
+    } else {
+      snake.pop();
+    }
+
+    snake.unshift({ x: headX, y: headY });
+
+    draw();
+  }
+
+  function draw() {
+    ctx.fillStyle = '#eee';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'red';
+    ctx.fillRect(food.x, food.y, box, box);
+
+    for (let i = 0; i < snake.length; i++) {
+      ctx.fillStyle = i === 0 ? 'green' : 'lime';
+      ctx.fillRect(snake[i].x, snake[i].y, box, box);
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+    }
+  }
+
+  function canTurnAwayFromEdge() {
+    const head = snake[0];
+    const possibleDirs = ['LEFT', 'UP', 'RIGHT', 'DOWN'];
+    const opposite = {
+      LEFT: 'RIGHT',
+      RIGHT: 'LEFT',
+      UP: 'DOWN',
+      DOWN: 'UP'
+    };
+
+    for (const dir of possibleDirs) {
+      if (dir === direction || dir === opposite[direction]) continue;
+
+      let newX = head.x;
+      let newY = head.y;
+
+      if (dir === 'LEFT') newX -= box;
+      else if (dir === 'RIGHT') newX += box;
+      else if (dir === 'UP') newY -= box;
+      else if (dir === 'DOWN') newY += box;
+
+      const safeX = newX >= 0 && newX < canvas.width;
+      const safeY = newY >= 0 && newY < canvas.height;
+      const safePos = safeX && safeY && !collision(newX, newY, snake);
+
+      if (dir === nextDirection && safePos) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function collision(x, y, array) {
+    for (let i = 0; i < array.length; i++) {
+      if (array[i].x === x && array[i].y === y) return true;
+    }
+    return false;
+  }
+
+  function gameOver() {
+    clearInterval(gameInterval);
+    edgeDelayTimer = null;
+    gameOverMessage.style.display = 'block';
+    controls.style.display = 'none';
+    canvas.style.display = 'none';
+  }
+
+  startGameBtn.addEventListener('click', () => {
+    mainMenu.style.display = 'none';
+    speedMenu.style.display = 'none';
+    gameOverMessage.style.display = 'none';
+    canvas.style.display = 'block';
+    controls.style.display = 'inline-block';
+    init();
+  });
+
+  chooseSpeedBtn.addEventListener('click', () => {
+    mainMenu.style.display = 'none';
+    speedMenu.style.display = 'block';
+  });
+
+  backToMenuBtn.addEventListener('click', () => {
+    speedMenu.style.display = 'none';
+    mainMenu.style.display = 'block';
+  });
+
+  restartBtn.addEventListener('click', () => {
+    gameOverMessage.style.display = 'none';
+    canvas.style.display = 'block';
+    controls.style.display = 'inline-block';
+    init();
+  });
+
+  exitToMenuBtn.addEventListener('click', () => {
+    gameOverMessage.style.display = 'none';
+    mainMenu.style.display = 'block';
+  });
+
+  speedSelect.addEventListener('change', () => {
+    speed = +speedSelect.value;
+    if (gameInterval) {
+      clearInterval(gameInterval);
+      gameInterval = setInterval(moveSnake, speed);
+    }
+  });
+
+  // Обработчики клавиатуры — меняют направление и сразу обновляют отрисовку,
+  // но НЕ вызывают moveSnake(), чтобы избежать перескакивания клеток
+  document.addEventListener('keydown', e => {
+    const key = e.key;
+    let changed = false;
+    if ((key === 'ArrowLeft' || key === 'a') && direction !== 'RIGHT') {
+      nextDirection = 'LEFT';
+      changed = true;
+    } else if ((key === 'ArrowUp' || key === 'w') && direction !== 'DOWN') {
+      nextDirection = 'UP';
+      changed = true;
+    } else if ((key === 'ArrowRight' || key === 'd') && direction !== 'LEFT') {
+      nextDirection = 'RIGHT';
+      changed = true;
+    } else if ((key === 'ArrowDown' || key === 's') && direction !== 'UP') {
+      nextDirection = 'DOWN';
+      changed = true;
+    }
+    if (changed) {
+      direction = nextDirection;
+      draw();
+    }
+  });
+
+  // Кнопки управления — аналогично
+  upBtn.addEventListener('click', () => {
+    if (direction !== 'DOWN') {
+      nextDirection = 'UP';
+      direction = nextDirection;
+      draw();
+    }
+  });
+  downBtn.addEventListener('click', () => {
+    if (direction !== 'UP') {
+      nextDirection = 'DOWN';
+      direction = nextDirection;
+      draw();
+    }
+  });
+  leftBtn.addEventListener('click', () => {
+    if (direction !== 'RIGHT') {
+      nextDirection = 'LEFT';
+      direction = nextDirection;
+      draw();
+    }
+  });
+  rightBtn.addEventListener('click', () => {
+    if (direction !== 'LEFT') {
+      nextDirection = 'RIGHT';
+      direction = nextDirection;
+      draw();
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (!snake) return;
+    const oldBox = box;
+    resizeCanvas();
+    snake = snake.map(segment => ({
+      x: Math.floor(segment.x / oldBox) * box,
+      y: Math.floor(segment.y / oldBox) * box
+    }));
+    food = {
+      x: Math.floor(food.x / oldBox) * box,
+      y: Math.floor(food.y / oldBox) * box
+    };
+    draw();
+  });
+</script>
+
+</body>
+</html>
