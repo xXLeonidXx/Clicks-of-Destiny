@@ -13,16 +13,16 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow: hidden; /* Чтобы не было скролла страницы */
+    overflow: hidden;
     height: 100vh;
   }
   #interface {
-    display: none; /* Скрываем интерфейс до заставки */
     width: 100%;
     flex-grow: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    user-select: none;
   }
   #controls {
     margin: 10px auto;
@@ -54,15 +54,14 @@
   }
   #fieldContainer {
     position: relative;
-    /* Размер будет динамическим */
     overflow: hidden;
-    touch-action: none; /* отключаем стандартный скролл браузера при тачах */
+    touch-action: none;
     border: 2px solid #333;
     background: #222;
     user-select: none;
     margin: 10px auto;
     flex-grow: 1;
-    max-width: calc(100vw - 80px); /* Оставляем место для кнопок справа */
+    max-width: calc(100vw - 80px);
     max-height: calc(100vh - 100px);
     width: 100%;
     height: 100%;
@@ -90,8 +89,6 @@
     justify-content: center;
     align-items: center;
     user-select: none;
-
-    /* Добавляем видимые границы клеток */
     border: 0.5px solid #444;
     box-sizing: border-box;
   }
@@ -104,8 +101,6 @@
     background-color: lightblue;
     cursor: pointer;
   }
-
-  /* Модальное окно улучшений */
   #modalUpgrades {
     display: none;
     position: fixed;
@@ -156,8 +151,6 @@
   #stats div {
     margin: 8px 0;
   }
-
-  /* Заставка */
   #splashScreen {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -184,8 +177,6 @@
       0 0 100px #0ff,
       0 0 150px #0ff;
   }
-
-  /* Кнопки масштабирования справа по центру */
   #zoomControls {
     position: fixed;
     right: 10px;
@@ -196,7 +187,6 @@
     gap: 10px;
     z-index: 10000;
   }
-
   #zoomControls button {
     width: 50px;
     height: 50px;
@@ -210,7 +200,6 @@
     box-shadow: 0 0 8px #0fa;
     transition: background-color 0.3s;
   }
-
   #zoomControls button:hover {
     background-color: #2a6;
   }
@@ -220,7 +209,7 @@
 
 <div id="splashScreen" title="Кликните, чтобы начать игру">Clicks of Destiny</div>
 
-<div id="interface">
+<div id="interface" style="display:none;">
   <div id="controls">
     <div id="gold">Золото: 0</div>
     <button id="btnUpgrades">Улучшения</button>
@@ -230,13 +219,11 @@
     <div id="field"></div>
   </div>
 
-  <!-- Кнопки масштабирования справа -->
   <div id="zoomControls">
     <button id="zoomIn" title="Увеличить масштаб">+</button>
     <button id="zoomOut" title="Уменьшить масштаб">−</button>
   </div>
 
-  <!-- Модальное окно улучшений -->
   <div id="modalUpgrades">
     <div class="content">
       <h2>Меню улучшений</h2>
@@ -259,20 +246,15 @@
   const splash = document.getElementById('splashScreen');
 
   let gold = 0;
-
-  // Улучшения
   let clickPower = 1;
   let goldPerClick = 1;
-
   let upgradeClickPowerCost = 10;
   let upgradeGoldPerClickCost = 10;
-
   const center = Math.floor(size / 2);
 
-  // Размер клетки в пикселях (установим динамически)
   let cellSize = 6;
   const minCellSize = 2;
-  const maxCellSizeLimit = 20; // Верхняя граница для размера клетки
+  const maxCellSizeLimit = 20;
 
   const cells = Array(size).fill(null).map(() => Array(size).fill(null));
 
@@ -292,13 +274,11 @@
   }
 
   function render() {
-    // Обновляем размер сетки и размер поля
     field.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
     field.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
     field.style.width = `${cellSize * size}px`;
     field.style.height = `${cellSize * size}px`;
 
-    // Очищаем поле
     field.innerHTML = '';
 
     for(let y=0; y<size; y++) {
@@ -355,7 +335,6 @@
     render();
   }
 
-  // Обработчики кнопок улучшений
   document.getElementById('upgradeClickPower').addEventListener('click', () => {
     if(gold >= upgradeClickPowerCost) {
       gold -= upgradeClickPowerCost;
@@ -378,31 +357,26 @@
     }
   });
 
-  // Кнопка открытия модального окна улучшений
   document.getElementById('btnUpgrades').addEventListener('click', () => {
     document.getElementById('modalUpgrades').style.display = 'block';
   });
 
-  // Кнопка закрытия модального окна
   document.getElementById('closeModal').addEventListener('click', () => {
     document.getElementById('modalUpgrades').style.display = 'none';
   });
 
-  // Закрытие модального окна при клике вне контента
   document.getElementById('modalUpgrades').addEventListener('click', (e) => {
     if(e.target === document.getElementById('modalUpgrades')) {
       document.getElementById('modalUpgrades').style.display = 'none';
     }
   });
 
-  // --- ПЕРЕТАСКИВАНИЕ ПОЛЯ ---
+  // ПЕРЕТАСКИВАНИЕ ПОЛЯ И МАСШТАБИРОВАНИЕ
 
   let offsetX = 0;
   let offsetY = 0;
-
   let startX = 0;
   let startY = 0;
-
   let isDragging = false;
 
   function clampOffset() {
@@ -421,13 +395,11 @@
     field.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
   }
 
-  // Рассчитать максимально возможный размер клетки, чтобы поле помещалось в контейнер с учетом кнопок справа
   function calcMaxCellSize() {
-    const zoomControlsWidth = 70; // ширина + отступ справа для кнопок масштабирования
-    const maxWidth = window.innerWidth - zoomControlsWidth - 20; // 20px padding слева/справа
-    const maxHeight = window.innerHeight - 100; // учитываем отступы сверху/снизу (примерно под контролы)
+    const zoomControlsWidth = 70;
+    const maxWidth = window.innerWidth - zoomControlsWidth - 20;
+    const maxHeight = window.innerHeight - 100;
 
-    // Размер клетки по ширине и высоте
     const cellSizeByWidth = Math.floor(maxWidth / size);
     const cellSizeByHeight = Math.floor(maxHeight / size);
 
@@ -439,17 +411,13 @@
     return maxPossible;
   }
 
-  // Центрируем поле на клетке (x,y) с заданным cellSize и смещением
   function centerOnCell(x, y) {
-    // Координаты центра контейнера
     const containerCenterX = container.clientWidth / 2;
     const containerCenterY = container.clientHeight / 2;
 
-    // Координаты клетки в пикселях (с учётом cellSize)
     const cellCenterX = x * cellSize + cellSize / 2;
     const cellCenterY = y * cellSize + cellSize / 2;
 
-    // Вычисляем смещение так, чтобы клетка была в центре контейнера
     offsetX = containerCenterX - cellCenterX;
     offsetY = containerCenterY - cellCenterY;
 
@@ -457,72 +425,75 @@
     updateTransform();
   }
 
-  // При изменении размера окна пересчитываем размер клетки и центрируем поле
   function onResize() {
     cellSize = calcMaxCellSize();
     render();
     clampOffset();
-    // Центрируем на центральной разблокированной клетке
     centerOnCell(center, center);
   }
 
-  // Заставка исчезает по клику, показываем интерфейс и центрируем поле
   splash.addEventListener('click', () => {
     splash.style.opacity = '0';
     setTimeout(() => {
       splash.style.display = 'none';
       interfaceDiv.style.display = 'flex';
 
-      // Рассчитываем и устанавливаем максимальный размер клетки и центрируем поле
-      cellSize = calcMaxCellSize();
+      cellSize = maxCellSizeLimit;
       render();
       centerOnCell(center, center);
     }, 1000);
   });
 
-  // Кнопки масштабирования
   document.getElementById('zoomIn').addEventListener('click', () => {
-    if(cellSize < maxCellSizeLimit) {
-      cellSize++;
-      render();
-      clampOffset();
-      updateTransform();
-    }
+    cellSize++;
+    render();
+    clampOffset();
+    updateTransform();
   });
   document.getElementById('zoomOut').addEventListener('click', () => {
-    if(cellSize > minCellSize) {
-      cellSize--;
-      render();
-      clampOffset();
-      updateTransform();
-    }
+    cellSize--;
+    render();
+    clampOffset();
+    updateTransform();
   });
 
-  // Touch events
   container.addEventListener('touchstart', (e) => {
-    if(e.touches.length !== 1) return;
-    isDragging = true;
-    startX = e.touches[0].clientX - offsetX;
-    startY = e.touches[0].clientY - offsetY;
+    if(e.touches.length === 1) {
+      isDragging = true;
+      startX = e.touches[0].clientX - offsetX;
+      startY = e.touches[0].clientY - offsetY;
+    } else if(e.touches.length === 2) {
+      isDragging = false;
+      pinchStart(e);
+    }
   }, {passive: false});
 
   container.addEventListener('touchmove', (e) => {
-    if(!isDragging) return;
-    e.preventDefault(); // Отключаем скролл страницы
-    offsetX = e.touches[0].clientX - startX;
-    offsetY = e.touches[0].clientY - startY;
-    clampOffset();
-    updateTransform();
+    if(e.touches.length === 1 && isDragging) {
+      e.preventDefault();
+      offsetX = e.touches[0].clientX - startX;
+      offsetY = e.touches[0].clientY - startY;
+      clampOffset();
+      updateTransform();
+    } else if(e.touches.length === 2) {
+      e.preventDefault();
+      pinchMove(e);
+    }
   }, {passive: false});
 
   container.addEventListener('touchend', (e) => {
-    isDragging = false;
+    if(e.touches.length < 2) {
+      pinchEnd();
+    }
+    if(e.touches.length === 0) {
+      isDragging = false;
+    }
   });
   container.addEventListener('touchcancel', (e) => {
     isDragging = false;
+    pinchEnd();
   });
 
-  // Mouse events (для удобства на ПК)
   container.addEventListener('mousedown', (e) => {
     isDragging = true;
     startX = e.clientX - offsetX;
@@ -542,13 +513,100 @@
     isDragging = false;
   });
 
-  // Пересчёт при изменении окна
+  // Масштабирование колесиком мыши
+  container.addEventListener('wheel', (e) => {
+    e.preventDefault();
+
+    const delta = e.deltaY || e.wheelDelta;
+    const zoomFactor = delta > 0 ? 0.9 : 1.1;
+
+    // Координаты мыши относительно поляContainer
+    const rect = container.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Координаты точки в поле до масштабирования
+    const prevCellSize = cellSize;
+    const prevOffsetX = offsetX;
+    const prevOffsetY = offsetY;
+
+    cellSize = cellSize * zoomFactor;
+
+    // Без ограничений размера клетки
+    // if(cellSize < minCellSize) cellSize = minCellSize;
+    // if(cellSize > maxCellSizeLimit) cellSize = maxCellSizeLimit;
+
+    // Координаты точки в поле после масштабирования
+    // Чтобы точка под курсором осталась на месте, пересчитаем offset
+    offsetX = mouseX - ((mouseX - prevOffsetX) * (cellSize / prevCellSize));
+    offsetY = mouseY - ((mouseY - prevOffsetY) * (cellSize / prevCellSize));
+
+    clampOffset();
+    render();
+    updateTransform();
+  }, {passive: false});
+
+  // Pinch zoom
+  let initialDistance = 0;
+  let initialCellSize = 0;
+  let pinchCenter = {x:0,y:0};
+  let pinchStartOffset = {x:0,y:0};
+
+  function getDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx*dx + dy*dy);
+  }
+
+  function getCenter(touches) {
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2
+    };
+  }
+
+  function pinchStart(e) {
+    initialDistance = getDistance(e.touches);
+    initialCellSize = cellSize;
+    pinchCenter = getCenter(e.touches);
+
+    const rect = container.getBoundingClientRect();
+    pinchCenter.x -= rect.left;
+    pinchCenter.y -= rect.top;
+
+    pinchStartOffset.x = offsetX;
+    pinchStartOffset.y = offsetY;
+  }
+
+  function pinchMove(e) {
+    if(e.touches.length !== 2) return;
+
+    const newDistance = getDistance(e.touches);
+    const scale = newDistance / initialDistance;
+    cellSize = initialCellSize * scale;
+
+    // Без ограничений размера клетки
+    // if(cellSize < minCellSize) cellSize = minCellSize;
+    // if(cellSize > maxCellSizeLimit) cellSize = maxCellSizeLimit;
+
+    offsetX = pinchCenter.x - ((pinchCenter.x - pinchStartOffset.x) * (cellSize / initialCellSize));
+    offsetY = pinchCenter.y - ((pinchCenter.y - pinchStartOffset.y) * (cellSize / initialCellSize));
+
+    clampOffset();
+    render();
+    updateTransform();
+  }
+
+  function pinchEnd() {
+    initialDistance = 0;
+    initialCellSize = 0;
+  }
+
   window.addEventListener('resize', () => {
     if(interfaceDiv.style.display !== 'none') {
       onResize();
     }
   });
-
 </script>
 
 </body>
