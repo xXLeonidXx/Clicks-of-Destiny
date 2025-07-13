@@ -1,441 +1,510 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <title>Змейка с плавным движением и мгновенным поворотом</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #f0f0f0;
-      margin: 0;
-      padding: 20px;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #game, #gameOverMessage {
-      margin: 20px auto;
-      display: none;
-      background: #eee;
-      border: 1px solid #000;
-      touch-action: none;
-      max-width: 100vw;
-      max-height: 100vh;
-    }
-    canvas {
-      display: block;
-      margin: 0 auto;
-      background: #eee;
-    }
-    .menu, .speed-menu, .controls {
-      margin-top: 20px;
-    }
-    button, select {
-      font-size: 20px;
-      padding: 14px 28px;
-      margin: 12px;
-      cursor: pointer;
-      user-select: none;
-      border-radius: 8px;
-      border: 2px solid #333;
-      background-color: #fff;
-      box-shadow: 1px 1px 6px rgba(0,0,0,0.3);
-      transition: background-color 0.2s;
-    }
-    button:active {
-      background-color: #ddd;
-    }
-    #gameOverMessage {
-      font-size: 26px;
-      color: red;
-    }
-    .controls {
-      display: inline-block;
-      margin-top: 15px;
-      user-select: none;
-    }
-    .control-row {
-      display: flex;
-      justify-content: center;
-      margin: 8px 0;
-    }
-    .arrow-btn {
-      font-size: 36px;
-      width: 80px;
-      height: 80px;
-      margin: 0 14px;
-      border-radius: 14px;
-      border: 2px solid #333;
-      background-color: #fff;
-      cursor: pointer;
-      box-shadow: 1px 1px 6px rgba(0,0,0,0.3);
-      transition: background-color 0.2s;
-      user-select: none;
-      line-height: 80px;
-      text-align: center;
-      padding: 0;
-    }
-    .arrow-btn:active {
-      background-color: #ddd;
-    }
-    @media (max-width: 480px) {
-      .arrow-btn {
-        width: 65px;
-        height: 65px;
-        font-size: 28px;
-        margin: 0 10px;
-        line-height: 65px;
-      }
-      button, select {
-        font-size: 18px;
-        padding: 12px 24px;
-        margin: 10px;
-      }
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Clicks of Destiny — масштабируемая карта</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #121212;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow: hidden; /* Чтобы не было скролла страницы */
+  }
+  #interface {
+    display: none; /* Скрываем интерфейс до заставки */
+    width: 100%;
+  }
+  #controls {
+    margin: 10px auto;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    z-index: 11000;
+  }
+  button {
+    padding: 8px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #3a8;
+    color: white;
+    transition: background-color 0.3s;
+    user-select: none;
+  }
+  button:hover {
+    background-color: #2a6;
+  }
+  #btnUpgrades {
+    margin-left: 30px;
+  }
+  #gold {
+    font-weight: bold;
+    font-size: 18px;
+  }
+  #fieldContainer {
+    position: relative;
+    width: 768px;  /* 128 клеток * 6px */
+    height: 768px;
+    overflow: hidden;
+    touch-action: none; /* отключаем стандартный скролл браузера при тачах */
+    border: 2px solid #333;
+    background: #222;
+    user-select: none;
+    margin: 10px auto;
+  }
+  #field {
+    display: grid;
+    grid-template-columns: repeat(128, 1fr);
+    grid-template-rows: repeat(128, 1fr);
+    background: #222;
+    user-select: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    will-change: transform;
+  }
+  .cell {
+    background-color: gray;
+    cursor: default;
+    font-size: 5px;
+    text-align: center;
+    line-height: 1;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+
+    /* Добавляем видимые границы клеток */
+    border: 0.5px solid #444;
+    box-sizing: border-box;
+  }
+  .unlocked {
+    background-color: lightgreen;
+    cursor: default;
+    color: black;
+  }
+  .available {
+    background-color: lightblue;
+    cursor: pointer;
+  }
+
+  /* Модальное окно улучшений */
+  #modalUpgrades {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    color: white;
+    z-index: 1000;
+    overflow-y: auto;
+  }
+  #modalUpgrades .content {
+    max-width: 400px;
+    margin: 80px auto;
+    background: #222;
+    padding: 20px 30px;
+    border-radius: 8px;
+    box-shadow: 0 0 15px black;
+    text-align: center;
+  }
+  #modalUpgrades h2 {
+    margin-top: 0;
+  }
+  #modalUpgrades button {
+    margin: 10px 0;
+    padding: 10px 15px;
+    width: 100%;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    background-color: #3a8;
+    color: white;
+    transition: background-color 0.3s;
+  }
+  #modalUpgrades button:hover {
+    background-color: #2a6;
+  }
+  #modalUpgrades #closeModal {
+    background-color: #c33;
+    margin-top: 20px;
+  }
+  #modalUpgrades #closeModal:hover {
+    background-color: #a00;
+  }
+  #stats {
+    margin-top: 15px;
+    font-size: 18px;
+  }
+  #stats div {
+    margin: 8px 0;
+  }
+
+  /* Заставка */
+  #splashScreen {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+    color: #f0f0f0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 5rem;
+    font-weight: 900;
+    letter-spacing: 0.15em;
+    z-index: 2000;
+    user-select: none;
+    cursor: pointer;
+    opacity: 1;
+    transition: opacity 1s ease;
+    text-shadow:
+      0 0 10px #00ffe7,
+      0 0 20px #00ffe7,
+      0 0 30px #00ffe7,
+      0 0 40px #0ff,
+      0 0 70px #0ff,
+      0 0 80px #0ff,
+      0 0 100px #0ff,
+      0 0 150px #0ff;
+  }
+
+  /* Кнопки масштабирования справа по центру */
+  #zoomControls {
+    position: fixed;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10000;
+  }
+
+  #zoomControls button {
+    width: 50px;
+    height: 50px;
+    font-size: 30px;
+    border-radius: 50%;
+    background-color: #3a8;
+    color: white;
+    border: none;
+    cursor: pointer;
+    user-select: none;
+    box-shadow: 0 0 8px #0fa;
+    transition: background-color 0.3s;
+  }
+
+  #zoomControls button:hover {
+    background-color: #2a6;
+  }
+</style>
 </head>
 <body>
 
-<div id="mainMenu" class="menu">
-  <h1>Змейка</h1>
-  <button id="startGameBtn">Старт игры</button>
-  <button id="chooseSpeedBtn">Выбор скорости</button>
-</div>
+<div id="splashScreen" title="Кликните, чтобы начать игру">Clicks of Destiny</div>
 
-<div id="speedMenu" class="speed-menu" style="display:none;">
-  <h2>Выберите скорость змейки</h2>
-  <select id="speedSelect" aria-label="Выбор скорости змейки">
-    <option value="300">1 (медленно)</option>
-    <option value="270">2</option>
-    <option value="240" selected>3</option>
-    <option value="210">4</option>
-    <option value="180">5</option>
-    <option value="150">6</option>
-    <option value="120">7</option>
-    <option value="90">8</option>
-    <option value="60">9</option>
-    <option value="30">10 (быстро)</option>
-  </select>
-  <br/>
-  <button id="backToMenuBtn">Назад в меню</button>
-</div>
-
-<canvas id="game" aria-label="Игровое поле змейки" role="img"></canvas>
-
-<div id="gameOverMessage" role="alert" aria-live="assertive">
-  Игра окончена!<br/>
-  <button id="restartBtn">Начать заново</button>
-  <button id="exitToMenuBtn">Выйти в меню</button>
-</div>
-
-<div id="controls" class="controls" style="display:none;" aria-label="Управление змейкой">
-  <div class="control-row">
-    <button id="upBtn" class="arrow-btn" aria-label="Вверх">↑</button>
+<div id="interface">
+  <div id="controls">
+    <div id="gold">Золото: 0</div>
+    <button id="btnUpgrades">Улучшения</button>
   </div>
-  <div class="control-row">
-    <button id="leftBtn" class="arrow-btn" aria-label="Влево">←</button>
-    <div style="width: 80px; display: inline-block;"></div>
-    <button id="rightBtn" class="arrow-btn" aria-label="Вправо">→</button>
+
+  <div id="fieldContainer">
+    <div id="field"></div>
   </div>
-  <div class="control-row">
-    <button id="downBtn" class="arrow-btn" aria-label="Вниз">↓</button>
+
+  <!-- Кнопки масштабирования справа -->
+  <div id="zoomControls">
+    <button id="zoomIn" title="Увеличить масштаб">+</button>
+    <button id="zoomOut" title="Уменьшить масштаб">−</button>
+  </div>
+
+  <!-- Модальное окно улучшений -->
+  <div id="modalUpgrades">
+    <div class="content">
+      <h2>Меню улучшений</h2>
+      <button id="upgradeClickPower">Улучшить силу клика (стоимость: 10)</button>
+      <button id="upgradeGoldPerClick">Улучшить золото за клик (стоимость: 10)</button>
+      <div id="stats">
+        <div>Сила клика (снимает кликов): <span id="clickPowerVal">1</span></div>
+        <div>Золото за клик: <span id="goldPerClickVal">1</span></div>
+      </div>
+      <button id="closeModal">Закрыть</button>
+    </div>
   </div>
 </div>
 
 <script>
-  const canvas = document.getElementById('game');
-  const ctx = canvas.getContext('2d');
+  const size = 128;
+  const field = document.getElementById('field');
+  const container = document.getElementById('fieldContainer');
+  const interfaceDiv = document.getElementById('interface');
+  const splash = document.getElementById('splashScreen');
 
-  const cols = 20;
-  const rows = 20;
+  let gold = 0;
 
-  let box;
+  // Улучшения
+  let clickPower = 1;
+  let goldPerClick = 1;
 
-  let snake;
-  let direction = 'RIGHT';
-  let nextDirection = 'RIGHT';
-  let food;
-  let gameInterval;
-  let speed = 240; // скорость по умолчанию — 3-я
+  let upgradeClickPowerCost = 10;
+  let upgradeGoldPerClickCost = 10;
 
-  let edgeDelayTimer = null;
-  const edgeDelayMs = 300;
+  const center = Math.floor(size / 2);
 
-  const mainMenu = document.getElementById('mainMenu');
-  const speedMenu = document.getElementById('speedMenu');
-  const gameOverMessage = document.getElementById('gameOverMessage');
-  const controls = document.getElementById('controls');
+  // Масштаб клетки в пикселях (начинаем с 6)
+  let cellSize = 6;
+  const minCellSize = 2;
+  const maxCellSize = 20;
 
-  const startGameBtn = document.getElementById('startGameBtn');
-  const chooseSpeedBtn = document.getElementById('chooseSpeedBtn');
-  const backToMenuBtn = document.getElementById('backToMenuBtn');
-  const restartBtn = document.getElementById('restartBtn');
-  const exitToMenuBtn = document.getElementById('exitToMenuBtn');
+  const cells = Array(size).fill(null).map(() => Array(size).fill(null));
 
-  const speedSelect = document.getElementById('speedSelect');
-
-  const upBtn = document.getElementById('upBtn');
-  const downBtn = document.getElementById('downBtn');
-  const leftBtn = document.getElementById('leftBtn');
-  const rightBtn = document.getElementById('rightBtn');
-
-  function resizeCanvas() {
-    const maxWidth = window.innerWidth * 0.9;
-    const maxHeight = (window.innerHeight - 200) * 0.9;
-
-    box = Math.floor(Math.min(maxWidth / cols, maxHeight / rows));
-
-    canvas.width = box * cols;
-    canvas.height = box * rows;
+  function dist(x,y) {
+    return Math.abs(x - center) + Math.abs(y - center);
   }
 
-  function init() {
-    resizeCanvas();
+  for(let y=0; y<size; y++) {
+    for(let x=0; x<size; x++) {
+      let distance = dist(x,y);
+      if(distance === 0) {
+        cells[y][x] = {state:1, clicksLeft:0};
+      } else {
+        cells[y][x] = {state:0, clicksLeft: distance * 3};
+      }
+    }
+  }
 
-    snake = [
-      { x: 9 * box, y: 10 * box },
-      { x: 8 * box, y: 10 * box },
-      { x: 7 * box, y: 10 * box },
+  function render() {
+    // Обновляем размер сетки и размер поля
+    field.style.gridTemplateColumns = `repeat(${size}, ${cellSize}px)`;
+    field.style.gridTemplateRows = `repeat(${size}, ${cellSize}px)`;
+    field.style.width = `${cellSize * size}px`;
+    field.style.height = `${cellSize * size}px`;
+
+    // Очищаем поле
+    field.innerHTML = '';
+
+    for(let y=0; y<size; y++) {
+      for(let x=0; x<size; x++) {
+        const cell = cells[y][x];
+        const div = document.createElement('div');
+        div.classList.add('cell');
+        div.style.width = div.style.height = cellSize + 'px';
+        div.style.fontSize = Math.max(5, cellSize / 1.5) + 'px';
+        div.style.lineHeight = div.style.height;
+
+        if(cell.state === 1) {
+          div.classList.add('unlocked');
+          div.textContent = '';
+        } else if(isAvailable(x,y)) {
+          div.classList.add('available');
+          div.textContent = cell.clicksLeft;
+          div.addEventListener('click', () => {
+            clickCell(x,y);
+          });
+        } else {
+          div.textContent = '';
+        }
+        field.appendChild(div);
+      }
+    }
+    document.getElementById('gold').textContent = `Золото: ${gold}`;
+    document.getElementById('upgradeClickPower').textContent = `Улучшить силу клика (стоимость: ${upgradeClickPowerCost})`;
+    document.getElementById('upgradeGoldPerClick').textContent = `Улучшить золото за клик (стоимость: ${upgradeGoldPerClickCost})`;
+    document.getElementById('clickPowerVal').textContent = clickPower;
+    document.getElementById('goldPerClickVal').textContent = goldPerClick;
+  }
+
+  function isAvailable(x,y) {
+    const cell = cells[y][x];
+    if(cell.state === 1) return false;
+    const neighbors = [
+      [x-1,y], [x+1,y], [x,y-1], [x,y+1]
     ];
-    direction = 'RIGHT';
-    nextDirection = 'RIGHT';
-    placeFood();
-    gameOverMessage.style.display = 'none';
-    edgeDelayTimer = null;
-
-    if (gameInterval) clearInterval(gameInterval);
-    gameInterval = setInterval(moveSnake, speed);
-
-    draw();
+    return neighbors.some(([nx,ny]) =>
+      nx >= 0 && ny >= 0 && nx < size && ny < size && cells[ny][nx].state === 1
+    );
   }
 
-  function placeFood() {
-    do {
-      food = {
-        x: Math.floor(Math.random() * cols) * box,
-        y: Math.floor(Math.random() * rows) * box,
-      };
-    } while (collision(food.x, food.y, snake));
+  function clickCell(x,y) {
+    const cell = cells[y][x];
+    if(!isAvailable(x,y)) return;
+
+    gold += goldPerClick;
+    cell.clicksLeft = Math.max(0, cell.clicksLeft - clickPower);
+    if(cell.clicksLeft === 0 && cell.state === 0) {
+      cell.state = 1;
+    }
+    render();
   }
 
-  function moveSnake() {
-    direction = nextDirection;
-
-    let headX = snake[0].x;
-    let headY = snake[0].y;
-
-    if (direction === 'LEFT') headX -= box;
-    else if (direction === 'RIGHT') headX += box;
-    else if (direction === 'UP') headY -= box;
-    else if (direction === 'DOWN') headY += box;
-
-    const outOfBounds = headX < 0 || headX >= canvas.width || headY < 0 || headY >= canvas.height;
-    const hitsSelf = collision(headX, headY, snake);
-
-    if (outOfBounds) {
-      if (!edgeDelayTimer) {
-        edgeDelayTimer = setTimeout(() => {
-          gameOver();
-        }, edgeDelayMs);
-      }
-      if (canTurnAwayFromEdge()) {
-        clearTimeout(edgeDelayTimer);
-        edgeDelayTimer = null;
-      }
-      draw();
-      return;
+  // Обработчики кнопок улучшений
+  document.getElementById('upgradeClickPower').addEventListener('click', () => {
+    if(gold >= upgradeClickPowerCost) {
+      gold -= upgradeClickPowerCost;
+      clickPower += 1;
+      upgradeClickPowerCost = Math.floor(upgradeClickPowerCost * 1.7);
+      render();
     } else {
-      if (edgeDelayTimer) {
-        clearTimeout(edgeDelayTimer);
-        edgeDelayTimer = null;
-      }
+      alert('Недостаточно золота для улучшения силы клика');
     }
+  });
 
-    if (hitsSelf) {
-      gameOver();
-      return;
-    }
-
-    if (headX === food.x && headY === food.y) {
-      placeFood();
+  document.getElementById('upgradeGoldPerClick').addEventListener('click', () => {
+    if(gold >= upgradeGoldPerClickCost) {
+      gold -= upgradeGoldPerClickCost;
+      goldPerClick += 1;
+      upgradeGoldPerClickCost = Math.floor(upgradeGoldPerClickCost * 1.7);
+      render();
     } else {
-      snake.pop();
+      alert('Недостаточно золота для улучшения золота за клик');
     }
+  });
 
-    snake.unshift({ x: headX, y: headY });
+  // Кнопка открытия модального окна улучшений
+  document.getElementById('btnUpgrades').addEventListener('click', () => {
+    document.getElementById('modalUpgrades').style.display = 'block';
+  });
 
-    draw();
+  // Кнопка закрытия модального окна
+  document.getElementById('closeModal').addEventListener('click', () => {
+    document.getElementById('modalUpgrades').style.display = 'none';
+  });
+
+  // Закрытие модального окна при клике вне контента
+  document.getElementById('modalUpgrades').addEventListener('click', (e) => {
+    if(e.target === document.getElementById('modalUpgrades')) {
+      document.getElementById('modalUpgrades').style.display = 'none';
+    }
+  });
+
+  // --- ПЕРЕТАСКИВАНИЕ ПОЛЯ ---
+
+  let offsetX = 0;
+  let offsetY = 0;
+
+  let startX = 0;
+  let startY = 0;
+
+  let isDragging = false;
+
+  function clampOffset() {
+    const maxOffsetX = 0;
+    const maxOffsetY = 0;
+    const minOffsetX = Math.min(container.clientWidth - field.clientWidth, 0);
+    const minOffsetY = Math.min(container.clientHeight - field.clientHeight, 0);
+
+    if(offsetX > maxOffsetX) offsetX = maxOffsetX;
+    if(offsetY > maxOffsetY) offsetY = maxOffsetY;
+    if(offsetX < minOffsetX) offsetX = minOffsetX;
+    if(offsetY < minOffsetY) offsetY = minOffsetY;
   }
 
-  function draw() {
-    ctx.fillStyle = '#eee';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = 'red';
-    ctx.fillRect(food.x, food.y, box, box);
-
-    for (let i = 0; i < snake.length; i++) {
-      ctx.fillStyle = i === 0 ? 'green' : 'lime';
-      ctx.fillRect(snake[i].x, snake[i].y, box, box);
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(snake[i].x, snake[i].y, box, box);
-    }
+  function updateTransform() {
+    field.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
   }
 
-  function canTurnAwayFromEdge() {
-    const head = snake[0];
-    const possibleDirs = ['LEFT', 'UP', 'RIGHT', 'DOWN'];
-    const opposite = {
-      LEFT: 'RIGHT',
-      RIGHT: 'LEFT',
-      UP: 'DOWN',
-      DOWN: 'UP'
-    };
+  // Центрируем поле на клетке (x,y) с максимальным масштабом и смещением
+  function centerOnCell(x, y) {
+    cellSize = maxCellSize;
+    render();
 
-    for (const dir of possibleDirs) {
-      if (dir === direction || dir === opposite[direction]) continue;
+    // Координаты центра контейнера
+    const containerCenterX = container.clientWidth / 2;
+    const containerCenterY = container.clientHeight / 2;
 
-      let newX = head.x;
-      let newY = head.y;
+    // Координаты клетки в пикселях (с учётом cellSize)
+    const cellCenterX = x * cellSize + cellSize / 2;
+    const cellCenterY = y * cellSize + cellSize / 2;
 
-      if (dir === 'LEFT') newX -= box;
-      else if (dir === 'RIGHT') newX += box;
-      else if (dir === 'UP') newY -= box;
-      else if (dir === 'DOWN') newY += box;
+    // Вычисляем смещение так, чтобы клетка была в центре контейнера
+    offsetX = containerCenterX - cellCenterX;
+    offsetY = containerCenterY - cellCenterY;
 
-      const safeX = newX >= 0 && newX < canvas.width;
-      const safeY = newY >= 0 && newY < canvas.height;
-      const safePos = safeX && safeY && !collision(newX, newY, snake);
-
-      if (dir === nextDirection && safePos) {
-        return true;
-      }
-    }
-    return false;
+    clampOffset();
+    updateTransform();
   }
 
-  function collision(x, y, array) {
-    for (let i = 0; i < array.length; i++) {
-      if (array[i].x === x && array[i].y === y) return true;
+  // Заставка исчезает по клику, показываем интерфейс и центрируем поле
+  splash.addEventListener('click', () => {
+    splash.style.opacity = '0';
+    setTimeout(() => {
+      splash.style.display = 'none';
+      interfaceDiv.style.display = 'block';
+
+      // Центрируем на центральной разблокированной клетке (center, center)
+      centerOnCell(center, center);
+    }, 1000);
+  });
+
+  // Кнопки масштабирования
+  document.getElementById('zoomIn').addEventListener('click', () => {
+    if(cellSize < maxCellSize) {
+      cellSize++;
+      render();
+      clampOffset();
+      updateTransform();
     }
-    return false;
-  }
-
-  function gameOver() {
-    clearInterval(gameInterval);
-    edgeDelayTimer = null;
-    gameOverMessage.style.display = 'block';
-    controls.style.display = 'none';
-    canvas.style.display = 'none';
-  }
-
-  startGameBtn.addEventListener('click', () => {
-    mainMenu.style.display = 'none';
-    speedMenu.style.display = 'none';
-    gameOverMessage.style.display = 'none';
-    canvas.style.display = 'block';
-    controls.style.display = 'inline-block';
-    init();
   });
-
-  chooseSpeedBtn.addEventListener('click', () => {
-    mainMenu.style.display = 'none';
-    speedMenu.style.display = 'block';
-  });
-
-  backToMenuBtn.addEventListener('click', () => {
-    speedMenu.style.display = 'none';
-    mainMenu.style.display = 'block';
-  });
-
-  restartBtn.addEventListener('click', () => {
-    gameOverMessage.style.display = 'none';
-    canvas.style.display = 'block';
-    controls.style.display = 'inline-block';
-    init();
-  });
-
-  exitToMenuBtn.addEventListener('click', () => {
-    gameOverMessage.style.display = 'none';
-    mainMenu.style.display = 'block';
-  });
-
-  speedSelect.addEventListener('change', () => {
-    speed = +speedSelect.value;
-    if (gameInterval) {
-      clearInterval(gameInterval);
-      gameInterval = setInterval(moveSnake, speed);
+  document.getElementById('zoomOut').addEventListener('click', () => {
+    if(cellSize > minCellSize) {
+      cellSize--;
+      render();
+      clampOffset();
+      updateTransform();
     }
   });
 
-  // Обработчики клавиатуры — меняют направление и сразу обновляют отрисовку,
-  // но НЕ вызывают moveSnake(), чтобы избежать перескакивания клеток
-  document.addEventListener('keydown', e => {
-    const key = e.key;
-    let changed = false;
-    if ((key === 'ArrowLeft' || key === 'a') && direction !== 'RIGHT') {
-      nextDirection = 'LEFT';
-      changed = true;
-    } else if ((key === 'ArrowUp' || key === 'w') && direction !== 'DOWN') {
-      nextDirection = 'UP';
-      changed = true;
-    } else if ((key === 'ArrowRight' || key === 'd') && direction !== 'LEFT') {
-      nextDirection = 'RIGHT';
-      changed = true;
-    } else if ((key === 'ArrowDown' || key === 's') && direction !== 'UP') {
-      nextDirection = 'DOWN';
-      changed = true;
-    }
-    if (changed) {
-      direction = nextDirection;
-      draw();
-    }
+  // Touch events
+  container.addEventListener('touchstart', (e) => {
+    if(e.touches.length !== 1) return;
+    isDragging = true;
+    startX = e.touches[0].clientX - offsetX;
+    startY = e.touches[0].clientY - offsetY;
+  }, {passive: false});
+
+  container.addEventListener('touchmove', (e) => {
+    if(!isDragging) return;
+    e.preventDefault(); // Отключаем скролл страницы
+    offsetX = e.touches[0].clientX - startX;
+    offsetY = e.touches[0].clientY - startY;
+    clampOffset();
+    updateTransform();
+  }, {passive: false});
+
+  container.addEventListener('touchend', (e) => {
+    isDragging = false;
+  });
+  container.addEventListener('touchcancel', (e) => {
+    isDragging = false;
   });
 
-  // Кнопки управления — аналогично
-  upBtn.addEventListener('click', () => {
-    if (direction !== 'DOWN') {
-      nextDirection = 'UP';
-      direction = nextDirection;
-      draw();
-    }
-  });
-  downBtn.addEventListener('click', () => {
-    if (direction !== 'UP') {
-      nextDirection = 'DOWN';
-      direction = nextDirection;
-      draw();
-    }
-  });
-  leftBtn.addEventListener('click', () => {
-    if (direction !== 'RIGHT') {
-      nextDirection = 'LEFT';
-      direction = nextDirection;
-      draw();
-    }
-  });
-  rightBtn.addEventListener('click', () => {
-    if (direction !== 'LEFT') {
-      nextDirection = 'RIGHT';
-      direction = nextDirection;
-      draw();
-    }
+  // Mouse events (для удобства на ПК)
+  container.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    startX = e.clientX - offsetX;
+    startY = e.clientY - offsetY;
+    e.preventDefault();
   });
 
-  window.addEventListener('resize', () => {
-    if (!snake) return;
-    const oldBox = box;
-    resizeCanvas();
-    snake = snake.map(segment => ({
-      x: Math.floor(segment.x / oldBox) * box,
-      y: Math.floor(segment.y / oldBox) * box
-    }));
-    food = {
-      x: Math.floor(food.x / oldBox) * box,
-      y: Math.floor(food.y / oldBox) * box
-    };
-    draw();
+  window.addEventListener('mousemove', (e) => {
+    if(!isDragging) return;
+    offsetX = e.clientX - startX;
+    offsetY = e.clientY - startY;
+    clampOffset();
+    updateTransform();
   });
+
+  window.addEventListener('mouseup', (e) => {
+    isDragging = false;
+  });
+
 </script>
 
 </body>
