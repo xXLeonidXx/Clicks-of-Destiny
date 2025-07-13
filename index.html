@@ -265,11 +265,7 @@
   for(let y=0; y<size; y++) {
     for(let x=0; x<size; x++) {
       let distance = dist(x,y);
-      if(distance === 0) {
-        cells[y][x] = {state:1, clicksLeft:0};
-      } else {
-        cells[y][x] = {state:0, clicksLeft: distance * 3};
-      }
+      cells[y][x] = distance === 0 ? {state:1, clicksLeft:0} : {state:0, clicksLeft: distance * 3};
     }
   }
 
@@ -285,7 +281,7 @@
       for(let x=0; x<size; x++) {
         const cell = cells[y][x];
         const div = document.createElement('div');
-        div.classList.add('cell');
+        div.className = 'cell';
         div.style.width = div.style.height = cellSize + 'px';
         div.style.fontSize = Math.max(5, cellSize / 1.5) + 'px';
         div.style.lineHeight = div.style.height;
@@ -296,9 +292,7 @@
         } else if(isAvailable(x,y)) {
           div.classList.add('available');
           div.textContent = cell.clicksLeft;
-          div.addEventListener('click', () => {
-            clickCell(x,y);
-          });
+          div.onclick = () => clickCell(x,y);
         } else {
           div.textContent = '';
         }
@@ -315,80 +309,59 @@
   function isAvailable(x,y) {
     const cell = cells[y][x];
     if(cell.state === 1) return false;
-    const neighbors = [
-      [x-1,y], [x+1,y], [x,y-1], [x,y+1]
-    ];
-    return neighbors.some(([nx,ny]) =>
-      nx >= 0 && ny >= 0 && nx < size && ny < size && cells[ny][nx].state === 1
-    );
+    const neighbors = [[x-1,y], [x+1,y], [x,y-1], [x,y+1]];
+    return neighbors.some(([nx,ny]) => nx >= 0 && ny >= 0 && nx < size && ny < size && cells[ny][nx].state === 1);
   }
 
   function clickCell(x,y) {
     const cell = cells[y][x];
     if(!isAvailable(x,y)) return;
-
     gold += goldPerClick;
     cell.clicksLeft = Math.max(0, cell.clicksLeft - clickPower);
-    if(cell.clicksLeft === 0 && cell.state === 0) {
-      cell.state = 1;
-    }
+    if(cell.clicksLeft === 0 && cell.state === 0) cell.state = 1;
     render();
   }
 
-  document.getElementById('upgradeClickPower').addEventListener('click', () => {
+  document.getElementById('upgradeClickPower').onclick = () => {
     if(gold >= upgradeClickPowerCost) {
       gold -= upgradeClickPowerCost;
-      clickPower += 1;
+      clickPower++;
       upgradeClickPowerCost = Math.floor(upgradeClickPowerCost * 1.7);
       render();
-    } else {
-      alert('Недостаточно золота для улучшения силы клика');
-    }
-  });
+    } else alert('Недостаточно золота для улучшения силы клика');
+  };
 
-  document.getElementById('upgradeGoldPerClick').addEventListener('click', () => {
+  document.getElementById('upgradeGoldPerClick').onclick = () => {
     if(gold >= upgradeGoldPerClickCost) {
       gold -= upgradeGoldPerClickCost;
-      goldPerClick += 1;
+      goldPerClick++;
       upgradeGoldPerClickCost = Math.floor(upgradeGoldPerClickCost * 1.7);
       render();
-    } else {
-      alert('Недостаточно золота для улучшения золота за клик');
-    }
-  });
+    } else alert('Недостаточно золота для улучшения золота за клик');
+  };
 
-  document.getElementById('btnUpgrades').addEventListener('click', () => {
+  document.getElementById('btnUpgrades').onclick = () => {
     document.getElementById('modalUpgrades').style.display = 'block';
-  });
+  };
 
-  document.getElementById('closeModal').addEventListener('click', () => {
+  document.getElementById('closeModal').onclick = () => {
     document.getElementById('modalUpgrades').style.display = 'none';
-  });
+  };
 
-  document.getElementById('modalUpgrades').addEventListener('click', (e) => {
+  document.getElementById('modalUpgrades').onclick = (e) => {
     if(e.target === document.getElementById('modalUpgrades')) {
       document.getElementById('modalUpgrades').style.display = 'none';
     }
-  });
+  };
 
-  // ПЕРЕТАСКИВАНИЕ ПОЛЯ И МАСШТАБИРОВАНИЕ
-
-  let offsetX = 0;
-  let offsetY = 0;
-  let startX = 0;
-  let startY = 0;
-  let isDragging = false;
+  let offsetX = 0, offsetY = 0, startX = 0, startY = 0, isDragging = false;
 
   function clampOffset() {
-    const maxOffsetX = 0;
-    const maxOffsetY = 0;
-    const minOffsetX = Math.min(container.clientWidth - field.clientWidth, 0);
-    const minOffsetY = Math.min(container.clientHeight - field.clientHeight, 0);
-
-    if(offsetX > maxOffsetX) offsetX = maxOffsetX;
-    if(offsetY > maxOffsetY) offsetY = maxOffsetY;
-    if(offsetX < minOffsetX) offsetX = minOffsetX;
-    if(offsetY < minOffsetY) offsetY = minOffsetY;
+    const maxX = 0, maxY = 0;
+    const minX = Math.min(container.clientWidth - field.clientWidth, 0);
+    const minY = Math.min(container.clientHeight - field.clientHeight, 0);
+    offsetX = Math.min(maxX, Math.max(minX, offsetX));
+    offsetY = Math.min(maxY, Math.max(minY, offsetY));
   }
 
   function updateTransform() {
@@ -399,28 +372,19 @@
     const zoomControlsWidth = 70;
     const maxWidth = window.innerWidth - zoomControlsWidth - 20;
     const maxHeight = window.innerHeight - 100;
-
-    const cellSizeByWidth = Math.floor(maxWidth / size);
-    const cellSizeByHeight = Math.floor(maxHeight / size);
-
-    let maxPossible = Math.min(cellSizeByWidth, cellSizeByHeight);
-
+    let maxPossible = Math.min(Math.floor(maxWidth / size), Math.floor(maxHeight / size));
     if(maxPossible > maxCellSizeLimit) maxPossible = maxCellSizeLimit;
     if(maxPossible < minCellSize) maxPossible = minCellSize;
-
     return maxPossible;
   }
 
   function centerOnCell(x, y) {
     const containerCenterX = container.clientWidth / 2;
     const containerCenterY = container.clientHeight / 2;
-
     const cellCenterX = x * cellSize + cellSize / 2;
     const cellCenterY = y * cellSize + cellSize / 2;
-
     offsetX = containerCenterX - cellCenterX;
     offsetY = containerCenterY - cellCenterY;
-
     clampOffset();
     updateTransform();
   }
@@ -432,32 +396,36 @@
     centerOnCell(center, center);
   }
 
-  splash.addEventListener('click', () => {
+  splash.onclick = () => {
     splash.style.opacity = '0';
     setTimeout(() => {
       splash.style.display = 'none';
       interfaceDiv.style.display = 'flex';
-
       cellSize = maxCellSizeLimit;
       render();
       centerOnCell(center, center);
     }, 1000);
-  });
+  };
 
-  document.getElementById('zoomIn').addEventListener('click', () => {
-    cellSize++;
-    render();
-    clampOffset();
-    updateTransform();
-  });
-  document.getElementById('zoomOut').addEventListener('click', () => {
-    cellSize--;
-    render();
-    clampOffset();
-    updateTransform();
-  });
+  document.getElementById('zoomIn').onclick = () => {
+    if(cellSize < maxCellSizeLimit) {
+      cellSize++;
+      render();
+      clampOffset();
+      updateTransform();
+    }
+  };
 
-  container.addEventListener('touchstart', (e) => {
+  document.getElementById('zoomOut').onclick = () => {
+    if(cellSize > minCellSize) {
+      cellSize--;
+      render();
+      clampOffset();
+      updateTransform();
+    }
+  };
+
+  container.addEventListener('touchstart', e => {
     if(e.touches.length === 1) {
       isDragging = true;
       startX = e.touches[0].clientX - offsetX;
@@ -466,9 +434,9 @@
       isDragging = false;
       pinchStart(e);
     }
-  }, {passive: false});
+  }, {passive:false});
 
-  container.addEventListener('touchmove', (e) => {
+  container.addEventListener('touchmove', e => {
     if(e.touches.length === 1 && isDragging) {
       e.preventDefault();
       offsetX = e.touches[0].clientX - startX;
@@ -479,29 +447,26 @@
       e.preventDefault();
       pinchMove(e);
     }
-  }, {passive: false});
+  }, {passive:false});
 
-  container.addEventListener('touchend', (e) => {
-    if(e.touches.length < 2) {
-      pinchEnd();
-    }
-    if(e.touches.length === 0) {
-      isDragging = false;
-    }
+  container.addEventListener('touchend', e => {
+    if(e.touches.length < 2) pinchEnd();
+    if(e.touches.length === 0) isDragging = false;
   });
-  container.addEventListener('touchcancel', (e) => {
+
+  container.addEventListener('touchcancel', () => {
     isDragging = false;
     pinchEnd();
   });
 
-  container.addEventListener('mousedown', (e) => {
+  container.addEventListener('mousedown', e => {
     isDragging = true;
     startX = e.clientX - offsetX;
     startY = e.clientY - offsetY;
     e.preventDefault();
   });
 
-  window.addEventListener('mousemove', (e) => {
+  window.addEventListener('mousemove', e => {
     if(!isDragging) return;
     offsetX = e.clientX - startX;
     offsetY = e.clientY - startY;
@@ -509,53 +474,36 @@
     updateTransform();
   });
 
-  window.addEventListener('mouseup', (e) => {
+  window.addEventListener('mouseup', () => {
     isDragging = false;
   });
 
-  // Масштабирование колесиком мыши
-  container.addEventListener('wheel', (e) => {
+  container.addEventListener('wheel', e => {
     e.preventDefault();
-
     const delta = e.deltaY || e.wheelDelta;
     const zoomFactor = delta > 0 ? 0.9 : 1.1;
-
-    // Координаты мыши относительно поляContainer
     const rect = container.getBoundingClientRect();
     const mouseX = e.clientX - rect.left;
     const mouseY = e.clientY - rect.top;
-
-    // Координаты точки в поле до масштабирования
     const prevCellSize = cellSize;
-    const prevOffsetX = offsetX;
-    const prevOffsetY = offsetY;
-
-    cellSize = cellSize * zoomFactor;
-
-    // Без ограничений размера клетки
-    // if(cellSize < minCellSize) cellSize = minCellSize;
-    // if(cellSize > maxCellSizeLimit) cellSize = maxCellSizeLimit;
-
-    // Координаты точки в поле после масштабирования
-    // Чтобы точка под курсором осталась на месте, пересчитаем offset
-    offsetX = mouseX - ((mouseX - prevOffsetX) * (cellSize / prevCellSize));
-    offsetY = mouseY - ((mouseY - prevOffsetY) * (cellSize / prevCellSize));
-
+    cellSize *= zoomFactor;
+    if(cellSize < minCellSize) cellSize = minCellSize;
+    if(cellSize > maxCellSizeLimit) cellSize = maxCellSizeLimit;
+    offsetX = mouseX - ((mouseX - offsetX) * (cellSize / prevCellSize));
+    offsetY = mouseY - ((mouseY - offsetY) * (cellSize / prevCellSize));
     clampOffset();
     render();
     updateTransform();
-  }, {passive: false});
+  }, {passive:false});
 
-  // Pinch zoom
-  let initialDistance = 0;
-  let initialCellSize = 0;
+  let initialDistance = 0, initialCellSize = 0;
   let pinchCenter = {x:0,y:0};
   let pinchStartOffset = {x:0,y:0};
 
   function getDistance(touches) {
     const dx = touches[0].clientX - touches[1].clientX;
     const dy = touches[0].clientY - touches[1].clientY;
-    return Math.sqrt(dx*dx + dy*dy);
+    return Math.hypot(dx, dy);
   }
 
   function getCenter(touches) {
@@ -569,29 +517,22 @@
     initialDistance = getDistance(e.touches);
     initialCellSize = cellSize;
     pinchCenter = getCenter(e.touches);
-
     const rect = container.getBoundingClientRect();
     pinchCenter.x -= rect.left;
     pinchCenter.y -= rect.top;
-
     pinchStartOffset.x = offsetX;
     pinchStartOffset.y = offsetY;
   }
 
   function pinchMove(e) {
     if(e.touches.length !== 2) return;
-
     const newDistance = getDistance(e.touches);
     const scale = newDistance / initialDistance;
     cellSize = initialCellSize * scale;
-
-    // Без ограничений размера клетки
-    // if(cellSize < minCellSize) cellSize = minCellSize;
-    // if(cellSize > maxCellSizeLimit) cellSize = maxCellSizeLimit;
-
+    if(cellSize < minCellSize) cellSize = minCellSize;
+    if(cellSize > maxCellSizeLimit) cellSize = maxCellSizeLimit;
     offsetX = pinchCenter.x - ((pinchCenter.x - pinchStartOffset.x) * (cellSize / initialCellSize));
     offsetY = pinchCenter.y - ((pinchCenter.y - pinchStartOffset.y) * (cellSize / initialCellSize));
-
     clampOffset();
     render();
     updateTransform();
@@ -603,9 +544,7 @@
   }
 
   window.addEventListener('resize', () => {
-    if(interfaceDiv.style.display !== 'none') {
-      onResize();
-    }
+    if(interfaceDiv.style.display !== 'none') onResize();
   });
 </script>
 
