@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <title>Clicks of Destiny — масштабируемая карта</title>
 <style>
   body {
@@ -13,10 +14,15 @@
     flex-direction: column;
     align-items: center;
     overflow: hidden; /* Чтобы не было скролла страницы */
+    height: 100vh;
   }
   #interface {
     display: none; /* Скрываем интерфейс до заставки */
     width: 100%;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
   }
   #controls {
     margin: 10px auto;
@@ -48,14 +54,19 @@
   }
   #fieldContainer {
     position: relative;
-    width: 768px;  /* 128 клеток * 6px */
-    height: 768px;
+    /* Размер будет динамическим */
     overflow: hidden;
     touch-action: none; /* отключаем стандартный скролл браузера при тачах */
     border: 2px solid #333;
     background: #222;
     user-select: none;
     margin: 10px auto;
+    flex-grow: 1;
+    max-width: calc(100vw - 80px); /* Оставляем место для кнопок справа */
+    max-height: calc(100vh - 100px);
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
   }
   #field {
     display: grid;
@@ -258,10 +269,10 @@
 
   const center = Math.floor(size / 2);
 
-  // Масштаб клетки в пикселях (начинаем с 6)
+  // Размер клетки в пикселях (установим динамически)
   let cellSize = 6;
   const minCellSize = 2;
-  const maxCellSize = 20;
+  const maxCellSizeLimit = 20; // Верхняя граница для размера клетки
 
   const cells = Array(size).fill(null).map(() => Array(size).fill(null));
 
@@ -410,11 +421,26 @@
     field.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
   }
 
-  // Центрируем поле на клетке (x,y) с максимальным масштабом и смещением
-  function centerOnCell(x, y) {
-    cellSize = maxCellSize;
-    render();
+  // Рассчитать максимально возможный размер клетки, чтобы поле помещалось в контейнер с учетом кнопок справа
+  function calcMaxCellSize() {
+    const zoomControlsWidth = 70; // ширина + отступ справа для кнопок масштабирования
+    const maxWidth = window.innerWidth - zoomControlsWidth - 20; // 20px padding слева/справа
+    const maxHeight = window.innerHeight - 100; // учитываем отступы сверху/снизу (примерно под контролы)
 
+    // Размер клетки по ширине и высоте
+    const cellSizeByWidth = Math.floor(maxWidth / size);
+    const cellSizeByHeight = Math.floor(maxHeight / size);
+
+    let maxPossible = Math.min(cellSizeByWidth, cellSizeByHeight);
+
+    if(maxPossible > maxCellSizeLimit) maxPossible = maxCellSizeLimit;
+    if(maxPossible < minCellSize) maxPossible = minCellSize;
+
+    return maxPossible;
+  }
+
+  // Центрируем поле на клетке (x,y) с заданным cellSize и смещением
+  function centerOnCell(x, y) {
     // Координаты центра контейнера
     const containerCenterX = container.clientWidth / 2;
     const containerCenterY = container.clientHeight / 2;
@@ -431,21 +457,32 @@
     updateTransform();
   }
 
+  // При изменении размера окна пересчитываем размер клетки и центрируем поле
+  function onResize() {
+    cellSize = calcMaxCellSize();
+    render();
+    clampOffset();
+    // Центрируем на центральной разблокированной клетке
+    centerOnCell(center, center);
+  }
+
   // Заставка исчезает по клику, показываем интерфейс и центрируем поле
   splash.addEventListener('click', () => {
     splash.style.opacity = '0';
     setTimeout(() => {
       splash.style.display = 'none';
-      interfaceDiv.style.display = 'block';
+      interfaceDiv.style.display = 'flex';
 
-      // Центрируем на центральной разблокированной клетке (center, center)
+      // Рассчитываем и устанавливаем максимальный размер клетки и центрируем поле
+      cellSize = calcMaxCellSize();
+      render();
       centerOnCell(center, center);
     }, 1000);
   });
 
   // Кнопки масштабирования
   document.getElementById('zoomIn').addEventListener('click', () => {
-    if(cellSize < maxCellSize) {
+    if(cellSize < maxCellSizeLimit) {
       cellSize++;
       render();
       clampOffset();
@@ -503,6 +540,13 @@
 
   window.addEventListener('mouseup', (e) => {
     isDragging = false;
+  });
+
+  // Пересчёт при изменении окна
+  window.addEventListener('resize', () => {
+    if(interfaceDiv.style.display !== 'none') {
+      onResize();
+    }
   });
 
 </script>
